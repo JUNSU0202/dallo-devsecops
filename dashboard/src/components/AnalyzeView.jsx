@@ -524,11 +524,15 @@ function ResultView({ result }) {
 
 
 function ApplyButton({ patch, vuln }) {
-  const [state, setState] = useState(null) // null | loading | applied | error
+  const [state, setState] = useState(null) // null | github_form | loading | applied | error
   const [diff, setDiff] = useState('')
   const [prUrl, setPrUrl] = useState(null)
   const [branch, setBranch] = useState('')
   const [message, setMessage] = useState('')
+  const [ghRepo, setGhRepo] = useState('')
+  const [ghToken, setGhToken] = useState('')
+
+  const showGithubForm = () => setState('github_form')
 
   const applyFix = async () => {
     setState('loading')
@@ -542,6 +546,8 @@ function ApplyButton({ patch, vuln }) {
           filename: vuln.file_path || 'fixed_code.py',
           vulnerability_id: vuln.id,
           fix_type: patch.fix_type,
+          github_repo: ghRepo,
+          github_token: ghToken,
         }),
       })
       const data = await r.json()
@@ -591,9 +597,70 @@ function ApplyButton({ patch, vuln }) {
     )
   }
 
+  if (state === 'github_form') {
+    return (
+      <div style={{
+        marginTop: 10, padding: 14, background: '#0f172a',
+        borderRadius: 8, border: '1px solid #334155',
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#e2e8f0' }}>
+          GitHub 레포 연결
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <input
+            value={ghRepo}
+            onChange={e => setGhRepo(e.target.value)}
+            placeholder="owner/repo (예: JUNSU0202/my-project)"
+            style={{
+              flex: 1, padding: '7px 12px', borderRadius: 6,
+              border: '1px solid #334155', background: '#1e293b',
+              color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input
+            value={ghToken}
+            onChange={e => setGhToken(e.target.value)}
+            placeholder="GitHub Personal Access Token"
+            type="password"
+            style={{
+              flex: 1, padding: '7px 12px', borderRadius: 6,
+              border: '1px solid #334155', background: '#1e293b',
+              color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={applyFix}
+            disabled={!ghRepo || !ghToken}
+            style={{
+              padding: '7px 18px', borderRadius: 6, border: 'none',
+              background: ghRepo && ghToken ? '#22c55e' : '#334155',
+              color: '#fff', fontSize: 13, cursor: ghRepo && ghToken ? 'pointer' : 'not-allowed',
+              fontWeight: 600,
+            }}
+          >
+            PR 생성
+          </button>
+          <button
+            onClick={() => setState(null)}
+            style={{
+              padding: '7px 14px', borderRadius: 6, border: '1px solid #334155',
+              background: 'transparent', color: '#94a3b8', fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <button
-      onClick={applyFix}
+      onClick={showGithubForm}
       disabled={state === 'loading'}
       style={{
         marginTop: 10,
@@ -607,7 +674,7 @@ function ApplyButton({ patch, vuln }) {
         fontWeight: 500,
       }}
     >
-      {state === 'loading' ? '적용 중...' : '✅ Apply Fix'}
+      {state === 'loading' ? '적용 중...' : '✅ Apply to GitHub'}
     </button>
   )
 }

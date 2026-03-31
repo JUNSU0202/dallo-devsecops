@@ -74,6 +74,8 @@ class ApplyPatchRequest(BaseModel):
     filename: str
     vulnerability_id: str
     fix_type: str = "recommended"
+    github_repo: str = ""     # 사용자의 GitHub 레포 (owner/repo)
+    github_token: str = ""    # 사용자의 GitHub 토큰
 
 
 # ============================================================
@@ -467,8 +469,9 @@ def apply_patch(req: ApplyPatchRequest):
     }
 
     # GitHub 브랜치 + PR 생성 시도
-    token = os.environ.get("GITHUB_TOKEN", "")
-    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    # 사용자가 입력한 레포/토큰 우선, 없으면 서버 환경변수 폴백
+    token = req.github_token or os.environ.get("GITHUB_TOKEN", "")
+    repo = req.github_repo or os.environ.get("GITHUB_REPOSITORY", "")
 
     if not token or not repo:
         result["message"] = "로컬 저장 완료 (GITHUB_TOKEN 미설정 — PR 생성 스킵)"
