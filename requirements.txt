@@ -18,6 +18,7 @@ requests>=2.31.0
 
 # === DB ===
 sqlalchemy>=2.0.25
+psycopg2-binary>=2.9.9
 
 # === 코드 검증 / 테스트 ===
 pytest>=8.0.0

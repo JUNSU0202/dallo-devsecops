@@ -1,24 +1,78 @@
-# SonarQube + PostgreSQL Docker Compose
-# 사용법: cd docker && docker-compose up -d
+# Dallo DevSecOps — 전체 서비스 Docker Compose
 #
-# SonarQube 웹 UI: http://localhost:9000
-# 기본 계정: admin / admin (첫 로그인 시 비밀번호 변경 필요)
+# 사용법:
+#   cd docker && docker-compose up -d
+#
+# 서비스:
+#   - dallo-api:      http://localhost:8000 (API + 대시보드)
+#   - dallo-postgres:  PostgreSQL 16 (분석 결과 DB)
+#   - dallo-sonarqube: http://localhost:9000 (SonarQube)
 
 version: "3.8"
 
 services:
+  # ===================================
+  # Dallo API + 대시보드
+  # ===================================
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: dallo-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://dallo:dallo_password@postgres:5432/dallo_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-dallo-production-key}
+      - SONAR_HOST_URL=http://sonarqube:9000
+      - SONAR_TOKEN=${SONAR_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dallo-network
+    restart: unless-stopped
+
+  # ===================================
+  # PostgreSQL (분석 결과 + SonarQube 공용)
+  # ===================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: dallo-postgres
+    environment:
+      POSTGRES_USER: dallo
+      POSTGRES_PASSWORD: dallo_password
+      POSTGRES_DB: dallo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - dallo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dallo -d dallo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===================================
+  # SonarQube (정적 분석)
+  # ===================================
   sonarqube:
     image: sonarqube:10-community
     container_name: dallo-sonarqube
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     ports:
       - "9000:9000"
     environment:
-      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
-      SONAR_JDBC_USERNAME: sonar
-      SONAR_JDBC_PASSWORD: sonar_password
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonarqube
+      SONAR_JDBC_USERNAME: dallo
+      SONAR_JDBC_PASSWORD: dallo_password
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
@@ -27,29 +81,11 @@ services:
       - dallo-network
     restart: unless-stopped
 
-  db:
-    image: postgres:16-alpine
-    container_name: dallo-postgres
-    environment:
-      POSTGRES_USER: sonar
-      POSTGRES_PASSWORD: sonar_password
-      POSTGRES_DB: sonarqube
-    volumes:
-      - postgresql_data:/var/lib/postgresql/data
-    networks:
-      - dallo-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sonar -d sonarqube"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
 volumes:
+  postgresql_data:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
-  postgresql_data:
 
 networks:
   dallo-network:

@@ -1,0 +1,15 @@
+venv/
+.venv/
+.git/
+.claude/
+__pycache__/
+*.pyc
+*.db
+.env
+.env.local
+reports/
+uploads/
+node_modules/
+dashboard/node_modules/
+.scannerwork/
+.pytest_cache/
