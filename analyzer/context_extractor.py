@@ -123,39 +123,67 @@ class ContextExtractor:
         return "\n".join(imports)
 
     def _extract_function(self, lines: list[str], target_line: int) -> str:
-        """취약점이 포함된 함수/메서드 전체를 추출"""
+        """취약점이 포함된 함수/메서드 전체를 추출 (Python, Java, JS, Go 등)"""
         target_idx = target_line - 1  # 0-indexed
 
         if target_idx >= len(lines) or target_idx < 0:
             return ""
 
-        # 위로 올라가며 def/class 찾기
+        # 위로 올라가며 함수/메서드 시작 찾기
         func_start = None
         func_indent = None
 
         for i in range(target_idx, -1, -1):
             stripped = lines[i].lstrip()
+
+            # Python: def, async def
             if stripped.startswith("def ") or stripped.startswith("async def "):
                 func_start = i
                 func_indent = len(lines[i]) - len(lines[i].lstrip())
                 break
 
+            # Java/C/C++/Go: public/private/protected/static/func + 여는 괄호
+            import re
+            if re.match(r'^(public|private|protected|static|func |function |const |let |var |async function )', stripped):
+                func_start = i
+                func_indent = len(lines[i]) - len(lines[i].lstrip())
+                break
+
         if func_start is None:
-            return ""
+            # 폴백: 주변 코드 ±context_lines 반환
+            start = max(0, target_idx - self.context_lines)
+            end = min(len(lines), target_idx + self.context_lines + 1)
+            return self._numbered_lines(lines, start, end)
 
         # 아래로 내려가며 함수 끝 찾기
-        func_end = func_start + 1
-        for i in range(func_start + 1, len(lines)):
-            line = lines[i]
-            # 빈 줄은 건너뛰기
-            if line.strip() == "":
-                func_end = i + 1
-                continue
-            # 같은 또는 더 작은 들여쓰기의 코드를 만나면 함수 끝
-            current_indent = len(line) - len(line.lstrip())
-            if current_indent <= func_indent and line.strip():
+        # 중괄호 언어(Java, JS, Go, C)는 중괄호 매칭으로
+        first_brace = None
+        for i in range(func_start, min(func_start + 5, len(lines))):
+            if '{' in lines[i]:
+                first_brace = i
                 break
-            func_end = i + 1
+
+        if first_brace is not None:
+            # 중괄호 매칭 (Java, JS, Go, C)
+            brace_count = 0
+            func_end = func_start
+            for i in range(func_start, len(lines)):
+                brace_count += lines[i].count('{') - lines[i].count('}')
+                func_end = i + 1
+                if brace_count <= 0 and i > first_brace:
+                    break
+        else:
+            # 들여쓰기 기반 (Python)
+            func_end = func_start + 1
+            for i in range(func_start + 1, len(lines)):
+                line = lines[i]
+                if line.strip() == "":
+                    func_end = i + 1
+                    continue
+                current_indent = len(line) - len(line.lstrip())
+                if current_indent <= func_indent and line.strip():
+                    break
+                func_end = i + 1
 
         return self._numbered_lines(lines, func_start, func_end)
 

@@ -151,8 +151,20 @@ class SemgrepRunner:
                 if isinstance(cwe_val, str) and "CWE-" in cwe_val:
                     cwe_id = cwe_val.split(":")[0].strip()
 
-            # 코드 스니펫
+            # 코드 스니펫 — Semgrep lines가 짧으면 파일에서 주변 코드 가져오기
             lines = item.get("extra", {}).get("lines", "")
+            start_line = item.get("start", {}).get("line", 0)
+            end_line_num = item.get("end", {}).get("line", start_line)
+            if len(lines.strip()) < 20 and start_line > 0:
+                try:
+                    file_path = item.get("path", "")
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        all_lines = f.readlines()
+                    ctx_start = max(0, start_line - 3)
+                    ctx_end = min(len(all_lines), end_line_num + 2)
+                    lines = "".join(all_lines[ctx_start:ctx_end])
+                except Exception:
+                    pass
 
             vuln = Vulnerability(
                 tool="semgrep",

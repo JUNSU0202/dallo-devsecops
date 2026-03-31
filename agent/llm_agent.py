@@ -286,8 +286,8 @@ class DalloAgent:
 
 ## 응답 형식 (반드시 아래 형식을 지켜주세요)
 ### 수정된 코드
-```python
-(여기에 수정된 전체 함수 코드를 작성하세요. 줄번호 없이 순수 Python 코드만 작성하세요.)
+```
+(여기에 수정된 전체 함수 코드를 작성하세요. 줄번호 없이 순수 코드만 작성하세요.)
 ```
 
 ### 수정 근거
@@ -466,15 +466,15 @@ class DalloAgent:
         fixed_code = ""
         explanation = ""
 
-        # 전략 1: "수정된 코드" 헤더 뒤의 코드 블록
-        header_code_pattern = r"(?:수정된\s*코드|Fixed\s*Code).*?\n```(?:python)?\s*\n(.*?)```"
+        # 전략 1: "수정된 코드" 헤더 뒤의 코드 블록 (어떤 언어든)
+        header_code_pattern = r"(?:수정된\s*코드|Fixed\s*Code).*?\n```(?:\w*)?\s*\n(.*?)```"
         match = re.search(header_code_pattern, response, re.DOTALL | re.IGNORECASE)
         if match:
             fixed_code = match.group(1).strip()
 
-        # 전략 2: 모든 python 코드 블록 중 마지막
+        # 전략 2: 모든 코드 블록 중 마지막 (python, java, javascript, go, c, cpp 등)
         if not fixed_code:
-            code_matches = re.findall(r"```python\s*\n(.*?)```", response, re.DOTALL)
+            code_matches = re.findall(r"```\w*\s*\n(.*?)```", response, re.DOTALL)
             if code_matches:
                 fixed_code = code_matches[-1].strip()
 
