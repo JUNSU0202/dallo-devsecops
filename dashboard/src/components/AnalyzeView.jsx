@@ -690,22 +690,34 @@ function ApplyButton({ patch, vuln }) {
   }
 
   return (
-    <button
-      onClick={showGithubForm}
-      disabled={state === 'loading'}
-      style={{
-        marginTop: 10,
-        padding: '7px 18px',
-        borderRadius: 6,
-        border: '1px solid #22c55e40',
-        background: state === 'loading' ? '#334155' : '#14532d',
-        color: '#86efac',
-        fontSize: 13,
-        cursor: state === 'loading' ? 'not-allowed' : 'pointer',
-        fontWeight: 500,
-      }}
-    >
-      {state === 'loading' ? '적용 중...' : ghRepo ? `✅ Apply to ${ghRepo}` : '✅ Apply to GitHub'}
-    </button>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+      <button
+        onClick={showGithubForm}
+        disabled={state === 'loading'}
+        style={{
+          padding: '7px 18px',
+          borderRadius: 6,
+          border: '1px solid #22c55e40',
+          background: state === 'loading' ? '#334155' : '#14532d',
+          color: '#86efac',
+          fontSize: 13,
+          cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+          fontWeight: 500,
+        }}
+      >
+        {state === 'loading' ? '적용 중...' : ghRepo ? `✅ Apply to ${ghRepo}` : '✅ Apply to GitHub'}
+      </button>
+      {ghRepo && (
+        <button
+          onClick={() => setState('github_form')}
+          style={{
+            padding: '5px 10px', borderRadius: 6, border: '1px solid #334155',
+            background: 'transparent', color: '#64748b', fontSize: 11, cursor: 'pointer',
+          }}
+        >
+          변경
+        </button>
+      )}
+    </div>
   )
 }
