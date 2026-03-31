@@ -150,6 +150,64 @@ export default function HistoryView() {
                   {s.started_at ? s.started_at.slice(0, 16).replace('T', ' ') : '-'}
                 </td>
               </tr>
+              {/* 세션 상세 (클릭 시 펼침) */}
+              {selected === s.session_id && detail && (
+                <tr>
+                  <td colSpan={10} style={{ padding: 0, background: '#0f172a' }}>
+                    <div style={{ padding: 16 }}>
+                      {/* 취약점 목록 */}
+                      {detail.vulnerabilities && detail.vulnerabilities.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#94a3b8' }}>
+                            Vulnerabilities ({detail.vulnerabilities.length})
+                          </div>
+                          {detail.vulnerabilities.map((v, vi) => (
+                            <div key={vi} style={{
+                              padding: '8px 12px', background: '#1e293b', borderRadius: 6,
+                              marginBottom: 4, fontSize: 12, display: 'flex', gap: 10, alignItems: 'center',
+                            }}>
+                              <span style={{ color: {HIGH:'#ef4444',MEDIUM:'#eab308',LOW:'#3b82f6'}[v.severity] || '#64748b' }}>
+                                {v.severity}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', color: '#94a3b8' }}>{v.rule_id}</span>
+                              <span>{v.title}</span>
+                              <span style={{ marginLeft: 'auto', color: '#64748b', fontFamily: 'monospace' }}>
+                                {(v.file_path || '').split('/').pop()}:{v.line_number}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* 패치 목록 */}
+                      {detail.patches && detail.patches.filter(p => p.fixed_code).length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#94a3b8' }}>
+                            AI Patches ({detail.patches.filter(p => p.fixed_code).length})
+                          </div>
+                          {detail.patches.filter(p => p.fixed_code).map((p, pi) => (
+                            <div key={pi} style={{
+                              padding: '8px 12px', background: '#1e293b', borderRadius: 6,
+                              marginBottom: 4, fontSize: 12,
+                            }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                                background: p.status?.includes('verified') || p.status?.includes('VERIFIED') ? '#22c55e20' : '#3b82f620',
+                                color: p.status?.includes('verified') || p.status?.includes('VERIFIED') ? '#22c55e' : '#3b82f6',
+                              }}>
+                                {p.status?.includes('verified') || p.status?.includes('VERIFIED') ? '✅ Verified' : '🤖 Generated'}
+                              </span>
+                              <span style={{ marginLeft: 8, color: '#94a3b8' }}>{p.vulnerability_id}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!detail.vulnerabilities?.length && (
+                        <div style={{ color: '#64748b', fontSize: 13 }}>상세 정보 없음</div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
             ))}
           </tbody>
         </table>

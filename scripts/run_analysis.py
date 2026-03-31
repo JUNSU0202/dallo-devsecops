@@ -213,8 +213,12 @@ def main():
             vr = vuln_reports[i]
             print(f"  [{i+1}] {vr.rule_id} — ", end="")
 
-            # 문법 검사
-            checker.check(patch)
+            # 문법 검사 (파일 확장자로 언어 감지)
+            import os as _os
+            _ext = _os.path.splitext(vr.file_path)[1].lower()
+            _lang_map = {".py": "python", ".java": "java", ".js": "javascript", ".ts": "typescript", ".go": "go", ".c": "c", ".cpp": "cpp", ".rs": "rust", ".kt": "kotlin"}
+            _lang = _lang_map.get(_ext, "python")
+            checker.check(patch, language=_lang)
             if not patch.syntax_valid:
                 print(f"❌ 문법 오류")
                 continue

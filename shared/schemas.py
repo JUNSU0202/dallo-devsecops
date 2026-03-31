@@ -67,6 +67,7 @@ class VulnerabilityReport:
     function_code: str = ""            # 취약점이 포함된 함수 전체
     file_imports: str = ""             # 파일의 import 문
     cwe_id: Optional[str] = None       # CWE ID
+    language: str = "python"           # 코드 언어 (python, java, javascript 등)
     more_info: str = ""                # 참고 URL
     created_at: str = ""               # 탐지 시각
 

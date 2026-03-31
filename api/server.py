@@ -344,12 +344,13 @@ def _run_analysis(job_id: str, code: str, filename: str, use_llm: bool, provider
             except Exception as e:
                 analysis_jobs[job_id]["llm_error"] = str(e)
 
-        # Step 4: 코드 검증
+        # Step 4: 코드 검증 (언어 감지하여 적절한 검증)
         if patches:
             analysis_jobs[job_id]["step"] = "코드 검증 중..."
             from validator.syntax_checker import SyntaxChecker
             checker = SyntaxChecker()
-            checker.check_batch(patches)
+            for p in patches:
+                checker.check(p, language=lang)
 
         # 결과 조립
         elapsed = time.time() - start_time

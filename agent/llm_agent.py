@@ -252,16 +252,29 @@ class DalloAgent:
             logger.info(f"  → {len(patches)}건 생성됨")
         return patches
 
+    def _detect_language(self, vuln: VulnerabilityReport) -> str:
+        """파일 확장자에서 언어를 감지합니다."""
+        import os
+        ext_map = {
+            ".py": "Python", ".java": "Java", ".js": "JavaScript",
+            ".ts": "TypeScript", ".go": "Go", ".c": "C", ".cpp": "C++",
+            ".rb": "Ruby", ".php": "PHP", ".cs": "C#", ".kt": "Kotlin",
+            ".rs": "Rust", ".swift": "Swift", ".scala": "Scala",
+        }
+        ext = os.path.splitext(vuln.file_path)[1].lower()
+        return ext_map.get(ext, vuln.language if hasattr(vuln, 'language') else "Python")
+
     def _build_prompt(self, vuln: VulnerabilityReport) -> str:
         """취약점 정보를 기반으로 LLM 프롬프트를 구성합니다."""
-        # 줄번호 접두사 제거 ("  13 | def..." → "def...")
         code = vuln.function_code or vuln.code_snippet
         cleaned_code = self._strip_line_numbers(code)
-        imports = vuln.file_imports or "# (없음)"
+        imports = vuln.file_imports or "(없음)"
+        lang = self._detect_language(vuln)
 
-        prompt = f"""당신은 보안 코드 리뷰 전문가입니다. 아래 보안 취약점을 분석하고 수정된 코드를 제공하세요.
+        prompt = f"""당신은 보안 코드 리뷰 전문가입니다. 아래 {lang} 코드의 보안 취약점을 분석하고 수정된 코드를 제공하세요.
 
 ## 취약점 정보
+- 언어: {lang}
 - 규칙: {vuln.rule_id} ({vuln.title})
 - 심각도: {vuln.severity}
 - 설명: {vuln.description}
@@ -269,17 +282,17 @@ class DalloAgent:
 - 파일: {vuln.file_path}:{vuln.line_number}
 
 ## Import 문
-```python
+```
 {imports}
 ```
 
 ## 취약한 코드
-```python
+```
 {cleaned_code}
 ```
 
 ## 요청사항
-1. 위 취약점을 수정한 안전한 코드를 작성하세요.
+1. 위 취약점을 수정한 안전한 {lang} 코드를 작성하세요.
 2. 기존 기능(비즈니스 로직)은 유지하면서 보안만 강화하세요.
 3. 수정 근거를 간단히 설명하세요.
 4. 수정 코드는 바로 적용 가능해야 합니다.
@@ -287,7 +300,7 @@ class DalloAgent:
 ## 응답 형식 (반드시 아래 형식을 지켜주세요)
 ### 수정된 코드
 ```
-(여기에 수정된 전체 함수 코드를 작성하세요. 줄번호 없이 순수 코드만 작성하세요.)
+(여기에 수정된 전체 함수 코드를 작성하세요. 줄번호 없이 순수 {lang} 코드만 작성하세요.)
 ```
 
 ### 수정 근거
@@ -299,11 +312,13 @@ class DalloAgent:
         """3가지 수정 옵션을 요청하는 프롬프트"""
         code = vuln.function_code or vuln.code_snippet
         cleaned_code = self._strip_line_numbers(code)
-        imports = vuln.file_imports or "# (없음)"
+        imports = vuln.file_imports or "(없음)"
+        lang = self._detect_language(vuln)
 
-        prompt = f"""당신은 보안 코드 리뷰 전문가입니다. 아래 보안 취약점에 대해 **3가지 수정 방안**을 제시하세요.
+        prompt = f"""당신은 보안 코드 리뷰 전문가입니다. 아래 {lang} 코드의 보안 취약점에 대해 **3가지 수정 방안**을 제시하세요.
 
 ## 취약점 정보
+- 언어: {lang}
 - 규칙: {vuln.rule_id} ({vuln.title})
 - 심각도: {vuln.severity}
 - 설명: {vuln.description}
@@ -424,7 +439,7 @@ class DalloAgent:
             response = self._client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "당신은 보안 코드 리뷰 전문가입니다. Python 보안 취약점을 분석하고 수정된 코드를 제공합니다."},
+                    {"role": "system", "content": "당신은 보안 코드 리뷰 전문가입니다. 다양한 프로그래밍 언어의 보안 취약점을 분석하고 수정된 코드를 제공합니다."},
                     {"role": "user", "content": prompt},
                 ],
                 temperature=self.temperature,
@@ -449,7 +464,7 @@ class DalloAgent:
                 model=self.model,
                 max_tokens=2048,
                 temperature=self.temperature,
-                system="당신은 보안 코드 리뷰 전문가입니다. Python 보안 취약점을 분석하고 수정된 코드를 제공합니다.",
+                system="당신은 보안 코드 리뷰 전문가입니다. 다양한 프로그래밍 언어의 보안 취약점을 분석하고 수정된 코드를 제공합니다.",
                 messages=[
                     {"role": "user", "content": prompt},
                 ],

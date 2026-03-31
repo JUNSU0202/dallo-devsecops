@@ -110,15 +110,27 @@ class ContextExtractor:
         return [self.extract(v) for v in vulnerabilities]
 
     def _extract_imports(self, lines: list[str]) -> str:
-        """파일 상단의 import 문 추출"""
+        """파일 상단의 import/require/include 문 추출 (다중 언어)"""
         imports = []
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith("import ") or stripped.startswith("from "):
+            # Python: import, from ... import
+            # Java/Kotlin/Scala: import
+            # Go: import (...)
+            # JavaScript/TypeScript: import, require, const x = require
+            # C/C++: #include
+            # PHP: use, require, include
+            # Rust: use
+            if (stripped.startswith("import ") or
+                stripped.startswith("from ") or
+                stripped.startswith("#include") or
+                stripped.startswith("require(") or
+                stripped.startswith("const ") and "require(" in stripped or
+                stripped.startswith("use ") or
+                stripped.startswith("package ")):
                 imports.append(stripped)
-            # 빈 줄이나 주석 이후 코드가 시작되면 import 영역 종료
-            elif stripped and not stripped.startswith("#") and not stripped.startswith('"""') and not stripped.startswith("'''"):
-                if imports:  # import가 이미 시작된 후에만 종료
+            elif stripped and not stripped.startswith("//") and not stripped.startswith("#") and not stripped.startswith("/*") and not stripped.startswith("*") and not stripped.startswith('"""') and not stripped.startswith("'''"):
+                if imports:
                     break
         return "\n".join(imports)
 
