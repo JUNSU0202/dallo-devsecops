@@ -100,7 +100,17 @@ export default function VulnTable({ vulns }) {
                     {(v.file_path || '').split('/').pop()}
                   </td>
                   <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 13 }}>{v.line_number}</td>
-                  <td style={{ padding: '10px 16px', fontSize: 12, color: '#94a3b8' }}>{v.cwe_id || '-'}</td>
+                  <td style={{ padding: '10px 16px', fontSize: 12 }}>
+                    {v.cwe_id ? (
+                      <a href={`https://cwe.mitre.org/data/definitions/${v.cwe_id.replace('CWE-','')}.html`}
+                         target="_blank" rel="noopener noreferrer"
+                         style={{ color: '#60a5fa', textDecoration: 'none' }}
+                         onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                         onMouseOut={e => e.target.style.textDecoration = 'none'}>
+                        {v.cwe_id}
+                      </a>
+                    ) : '-'}
+                  </td>
                 </tr>
                 {expanded === i && (
                   <tr>

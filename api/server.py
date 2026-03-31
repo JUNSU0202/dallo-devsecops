@@ -276,6 +276,12 @@ def _run_analysis(job_id: str, code: str, filename: str, use_llm: bool, provider
     start_time = time.time()
 
     try:
+        # 입력 크기 제한 (1MB)
+        if len(code) > 1_000_000:
+            analysis_jobs[job_id]["status"] = "failed"
+            analysis_jobs[job_id]["error"] = "코드가 너무 큽니다 (최대 1MB)"
+            return
+
         # 임시 디렉토리에 코드 저장
         tmp_dir = tempfile.mkdtemp(prefix="dallo_analyze_")
         file_path = os.path.join(tmp_dir, filename)
@@ -374,13 +380,14 @@ def _run_analysis(job_id: str, code: str, filename: str, use_llm: bool, provider
         analysis_jobs[job_id]["result"] = result_data
         analysis_jobs[job_id]["step"] = "완료"
 
-        # 임시 디렉토리 정리
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
     except Exception as e:
         analysis_jobs[job_id]["status"] = "failed"
         analysis_jobs[job_id]["error"] = str(e)
         analysis_jobs[job_id]["step"] = f"오류: {str(e)}"
+    finally:
+        # 임시 디렉토리 정리 (에러 발생 시에도 반드시 실행)
+        if 'tmp_dir' in locals():
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.post("/api/analyze")

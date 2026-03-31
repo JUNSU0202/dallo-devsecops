@@ -76,9 +76,12 @@ class TestRunner:
         result = self._run_in_sandbox(patch.fixed_code, original_file_path, test_dir)
         patch.test_passed = result.passed
 
-        if result.passed:
+        if result.passed is True:
             if patch.status != PatchStatus.FAILED:
                 patch.status = PatchStatus.VERIFIED
+        elif result.passed is None:
+            # 테스트 파일 없음 — 문법만 통과한 상태 유지
+            pass
         else:
             patch.status = PatchStatus.FAILED
             patch.explanation += f"\n\n⚠️ 테스트 실패:\n{result.error or result.output}"
@@ -117,8 +120,8 @@ class TestRunner:
             # pytest 실행
             test_path = os.path.join(tmp_dir, test_dir or "tests")
             if not os.path.exists(test_path) or not os.listdir(test_path):
-                # 테스트 파일이 없으면 문법 검사만 통과한 것으로 간주
-                return TestResult(passed=True, output="테스트 파일 없음 - 문법 검사만 통과")
+                # 테스트 파일이 없으면 테스트 미실행으로 표시 (VERIFIED로 올리지 않음)
+                return TestResult(passed=None, output="테스트 파일 없음 - 문법 검사만 완료")
 
             result = subprocess.run(
                 [sys.executable, "-m", "pytest", test_path, "-v", "--tb=short"],

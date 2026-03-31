@@ -35,12 +35,13 @@ class CheckResult:
 class SyntaxChecker:
     """LLM 생성 코드의 문법 검증기"""
 
-    def check(self, patch: PatchSuggestion) -> PatchSuggestion:
+    def check(self, patch: PatchSuggestion, language: str = "python") -> PatchSuggestion:
         """
         PatchSuggestion의 fixed_code 문법을 검증하고 결과를 업데이트합니다.
 
         Args:
             patch: LLM이 생성한 수정안
+            language: 코드 언어 (python, java, javascript, go 등)
 
         Returns:
             문법 검증 결과가 반영된 PatchSuggestion
@@ -50,7 +51,7 @@ class SyntaxChecker:
             patch.status = PatchStatus.FAILED
             return patch
 
-        result = self._check_syntax(patch.fixed_code)
+        result = self._check_syntax(patch.fixed_code, language)
         patch.syntax_valid = result.valid
 
         if not result.valid:
@@ -63,8 +64,17 @@ class SyntaxChecker:
         """여러 수정안을 일괄 검증"""
         return [self.check(p) for p in patches]
 
-    def _check_syntax(self, code: str) -> CheckResult:
-        """Python 코드의 문법을 검증합니다."""
+    def _check_syntax(self, code: str, language: str = "python") -> CheckResult:
+        """코드의 문법을 검증합니다. Python은 AST, 기타 언어는 기본 구조 검사."""
+        if language == "python":
+            return self._check_python(code)
+        elif language in ("java", "javascript", "typescript", "go", "c", "cpp"):
+            return self._check_brackets(code, language)
+        else:
+            return self._check_brackets(code, language)
+
+    def _check_python(self, code: str) -> CheckResult:
+        """Python AST 파싱으로 문법 검증"""
         try:
             ast.parse(code)
             return CheckResult(valid=True)
@@ -74,6 +84,48 @@ class SyntaxChecker:
                 error_message=str(e.msg),
                 error_line=e.lineno,
             )
+
+    def _check_brackets(self, code: str, language: str) -> CheckResult:
+        """중괄호/괄호 매칭으로 기본 구조 검증 (Java, JS, Go, C 등)"""
+        stack = []
+        pairs = {')': '(', ']': '[', '}': '{'}
+        in_string = False
+        string_char = None
+        prev_char = None
+
+        for i, ch in enumerate(code):
+            # 문자열 내부 스킵
+            if in_string:
+                if ch == string_char and prev_char != '\\':
+                    in_string = False
+                prev_char = ch
+                continue
+
+            if ch in ('"', "'", '`'):
+                in_string = True
+                string_char = ch
+                prev_char = ch
+                continue
+
+            if ch in '([{':
+                stack.append((ch, i))
+            elif ch in ')]}':
+                if not stack:
+                    line = code[:i].count('\n') + 1
+                    return CheckResult(valid=False, error_message=f"Unmatched '{ch}'", error_line=line)
+                top, _ = stack.pop()
+                if top != pairs[ch]:
+                    line = code[:i].count('\n') + 1
+                    return CheckResult(valid=False, error_message=f"Mismatched '{top}' and '{ch}'", error_line=line)
+
+            prev_char = ch
+
+        if stack:
+            ch, pos = stack[-1]
+            line = code[:pos].count('\n') + 1
+            return CheckResult(valid=False, error_message=f"Unclosed '{ch}'", error_line=line)
+
+        return CheckResult(valid=True)
 
     def check_with_flake8(self, code: str) -> CheckResult:
         """flake8로 코드 스타일까지 검사합니다 (선택적)."""

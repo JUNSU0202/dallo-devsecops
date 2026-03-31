@@ -123,6 +123,11 @@ export default function AnalyzeView({ onComplete }) {
 
   const [sampleMenu, setSampleMenu] = useState(false)
 
+  // 컴포넌트 언마운트 시 폴링 정리
+  React.useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
+
   const loadSample = (lang) => {
     const s = SAMPLES[lang]
     if (s) {
