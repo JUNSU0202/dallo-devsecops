@@ -25,6 +25,9 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.models import SessionLocal, AnalysisRun, Vulnerability, Patch, init_db
+from shared.encryption import CodeEncryptor
+
+_encryptor = CodeEncryptor()
 
 
 def save_analysis(data: dict) -> str:
@@ -87,8 +90,8 @@ def save_analysis(data: dict) -> str:
                 cwe_id=v.get("cwe_id"),
                 file_path=v.get("file_path", ""),
                 line_number=v.get("line_number", 0),
-                code_snippet=v.get("code_snippet", ""),
-                function_code=v.get("function_code", ""),
+                code_snippet=_encryptor.encrypt(v.get("code_snippet", "")),
+                function_code=_encryptor.encrypt(v.get("function_code", "")),
             )
             db.add(vuln)
             db.flush()
@@ -101,7 +104,7 @@ def save_analysis(data: dict) -> str:
                 continue
             patch = Patch(
                 vulnerability_id=vuln_db_id,
-                fixed_code=p.get("fixed_code", ""),
+                fixed_code=_encryptor.encrypt(p.get("fixed_code", "")),
                 explanation=p.get("explanation", ""),
                 fix_type=p.get("fix_type", "recommended"),
                 status=_normalize_status(p.get("status", "pending")),
@@ -269,20 +272,30 @@ def _vuln_to_dict(v: Vulnerability) -> dict:
         "cwe_id": v.cwe_id,
         "file_path": v.file_path,
         "line_number": v.line_number,
-        "code_snippet": v.code_snippet,
-        "function_code": v.function_code,
+        "code_snippet": _safe_decrypt(v.code_snippet),
+        "function_code": _safe_decrypt(v.function_code),
     }
 
 
 def _patch_to_dict(p: Patch) -> dict:
     return {
-        "fixed_code": p.fixed_code,
+        "fixed_code": _safe_decrypt(p.fixed_code),
         "explanation": p.explanation,
         "fix_type": p.fix_type,
         "status": p.status,
         "syntax_valid": p.syntax_valid,
         "test_passed": p.test_passed,
     }
+
+
+def _safe_decrypt(text: str) -> str:
+    """암호화된 텍스트면 복호화, 아니면 그대로 반환"""
+    if not text:
+        return ""
+    try:
+        return _encryptor.decrypt(text)
+    except Exception:
+        return text  # 암호화 안 된 데이터는 그대로
 
 
 def _parse_dt(val) -> Optional[datetime]:
