@@ -499,6 +499,8 @@ function ResultView({ result }) {
                     fontSize: 12, lineHeight: 1.6, overflow: 'auto',
                     color: '#86efac', border: '1px solid #14532d',
                   }}>{patch.fixed_code}</pre>
+
+                  <ApplyButton patch={patch} vuln={v} />
                 </div>
               )
             })}
@@ -512,5 +514,79 @@ function ResultView({ result }) {
         )
       })}
     </div>
+  )
+}
+
+
+function ApplyButton({ patch, vuln }) {
+  const [state, setState] = useState(null) // null | loading | applied | error
+  const [diff, setDiff] = useState('')
+
+  const applyFix = async () => {
+    setState('loading')
+    try {
+      const r = await fetch(`${API}/api/apply-patch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          original_code: vuln.code_snippet || '',
+          fixed_code: patch.fixed_code,
+          filename: vuln.file_path || 'fixed_code.py',
+          vulnerability_id: vuln.id,
+          fix_type: patch.fix_type,
+        }),
+      })
+      const data = await r.json()
+      setDiff(data.diff || '')
+      setState('applied')
+    } catch (e) {
+      setState('error')
+    }
+  }
+
+  if (state === 'applied') {
+    return (
+      <div style={{ marginTop: 10 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 14px', background: '#14532d', borderRadius: 6,
+          fontSize: 13, color: '#86efac', marginBottom: 8,
+        }}>
+          ✅ 수정안 적용 완료
+        </div>
+        {diff && (
+          <details>
+            <summary style={{ fontSize: 12, color: '#64748b', cursor: 'pointer', marginBottom: 4 }}>
+              Diff 보기
+            </summary>
+            <pre style={{
+              background: '#0f172a', padding: 12, borderRadius: 8,
+              fontSize: 11, lineHeight: 1.5, overflow: 'auto',
+              color: '#e2e8f0', border: '1px solid #334155', maxHeight: 300,
+            }}>{diff}</pre>
+          </details>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={applyFix}
+      disabled={state === 'loading'}
+      style={{
+        marginTop: 10,
+        padding: '7px 18px',
+        borderRadius: 6,
+        border: '1px solid #22c55e40',
+        background: state === 'loading' ? '#334155' : '#14532d',
+        color: '#86efac',
+        fontSize: 13,
+        cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+        fontWeight: 500,
+      }}
+    >
+      {state === 'loading' ? '적용 중...' : '✅ Apply Fix'}
+    </button>
   )
 }

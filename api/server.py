@@ -63,9 +63,17 @@ class AnalyzeRequest(BaseModel):
     code: str
     filename: str = "uploaded_code.py"
     use_llm: bool = True
-    multi_patch: bool = False  # True: 3가지 수정안, False: 1가지
+    multi_patch: bool = False
     provider: str = "gemini"
     model: str = "gemini-2.5-flash"
+
+
+class ApplyPatchRequest(BaseModel):
+    original_code: str
+    fixed_code: str
+    filename: str
+    vulnerability_id: str
+    fix_type: str = "recommended"
 
 
 # ============================================================
@@ -407,6 +415,45 @@ def get_analysis_status(job_id: str):
     if not job:
         return {"error": "Job not found"}
     return job
+
+
+@app.post("/api/apply-patch")
+def apply_patch(req: ApplyPatchRequest):
+    """
+    수정안을 적용하여 수정된 코드를 반환합니다.
+    원본 코드와 수정 코드의 diff도 함께 제공합니다.
+    """
+    import difflib
+
+    # diff 생성
+    original_lines = req.original_code.splitlines(keepends=True)
+    fixed_lines = req.fixed_code.splitlines(keepends=True)
+
+    diff = list(difflib.unified_diff(
+        original_lines, fixed_lines,
+        fromfile=f"a/{req.filename} (original)",
+        tofile=f"b/{req.filename} (fixed)",
+        lineterm="",
+    ))
+
+    # 수정된 파일 저장 (uploads 디렉토리)
+    applied_dir = os.path.join(UPLOAD_DIR, "applied")
+    os.makedirs(applied_dir, exist_ok=True)
+    applied_path = os.path.join(applied_dir, req.filename)
+    with open(applied_path, "w", encoding="utf-8") as f:
+        f.write(req.fixed_code)
+
+    return {
+        "status": "applied",
+        "filename": req.filename,
+        "vulnerability_id": req.vulnerability_id,
+        "fix_type": req.fix_type,
+        "diff": "\n".join(diff),
+        "applied_path": applied_path,
+        "original_lines": len(original_lines),
+        "fixed_lines": len(fixed_lines),
+        "changes": sum(1 for l in diff if l.startswith("+") or l.startswith("-")) - 2,  # 헤더 제외
+    }
 
 
 @app.post("/api/analyze/file")
