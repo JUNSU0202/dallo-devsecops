@@ -5,8 +5,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 테스트용 API 키 설정 (인증 통과용)
-os.environ.setdefault("DALLO_API_KEYS", "test-api-key")
+# 테스트용 API 키 설정 (인증 통과용 — CI 환경변수보다 우선 적용)
+os.environ["DALLO_API_KEYS"] = "test-api-key"
 
 from fastapi.testclient import TestClient
 from api.server import app
