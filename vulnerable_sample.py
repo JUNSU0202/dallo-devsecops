@@ -1,13 +1,5 @@
-import hashlib
-import os
+import subprocess
 
-def hash_password(password):
-    """안전: PBKDF2-HMAC-SHA256을 사용한 강력한 해싱"""
-    salt = os.urandom(16)
-    key = hashlib.pbkdf2_hmac(
-        'sha256',
-        password.encode(),
-        salt,
-        100000
-    )
-    return salt.hex() + ":" + key.hex()
+def run_command(user_input):
+    """안전: subprocess.run을 사용하여 쉘 인젝션 방지"""
+    subprocess.run(["echo", user_input], check=True)
